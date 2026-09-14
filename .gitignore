@@ -1,0 +1,41 @@
+# ===== 原始数据与中间产物：体积大且可重新生成 =====
+data/
+*.parquet
+*.duckdb
+*.duckdb.wal
+*.csv
+
+# ===== Python 运行产物 =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# ===== 虚拟环境 =====
+.venv/
+venv/
+
+# ===== 敏感信息：绝对不能上传 =====
+.env
+*.pem
+*credentials*
+*secret*
+
+# ===== Airflow 运行目录：日志会膨胀到几百 MB =====
+airflow_home/
+logs/
+
+# ===== IDE 与编辑器配置 =====
+.idea/
+.vscode/
+
+# ===== 操作系统垃圾文件 =====
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ===== 临时文件 =====
+scratch/tmp/
+*.log
+*.bak

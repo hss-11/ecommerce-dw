@@ -1,0 +1,5 @@
+duckdb==1.5.5
+packaging==26.3
+polars==1.44.2
+polars-runtime-32==1.44.2
+pyarrow==25.0.1
