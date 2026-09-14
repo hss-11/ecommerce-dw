@@ -35,6 +35,7 @@
 - [x] Day 4 修正金额对账逻辑（SUM(DISTINCT) → CTE 先聚合再 join）
 - [x] Day 4 推翻并重建 reviews 去重方案（改为组合主键不去重）
 - [x] Day 4 定位 776 差额真因（内连接静默丢弃，非"无支付"）
+- [x] Day 5 Git配置完成
 
 ## 关键决策记录（面试讲项目的素材）
 | 日期 | 决策 | 理由 |
@@ -70,6 +71,7 @@
 | 09-14 | 金额对账误报 8,182 条 | SUM(DISTINCT) 把金额相同的不同商品行去重 | 改 CTE 先各自聚合到订单粒度再 join，实际仅 380 条 |
 | 09-14 | reviews 去重方案作废 | ORDER BY 时间戳存在并列值，ROW_NUMBER 分配随机 | 改组合主键不去重；若去重须加 order_id 做 tie-breaker |
 | 09-14 | 误判"776 个订单无支付" | 未审查自己的 SQL 就下结论；实际是内连接取了交集 | 补查 7 验证否定假设，真因是 776 单无商品明细 |
+| 09-14 | git push 反复询问指纹，日志出现 `Could not create directory '/c/Users/\272\372.../.ssh'` | Git 自带 ssh 按 UTF-8 解析路径，中文用户名是 GBK 字节，写不了 known_hosts（认证因 -i 显式指定密钥未受影响） | `git config core.sshCommand "C:/Windows/System32/OpenSSH/ssh.exe"` 改用系统自带 ssh |
 
 
 ## 下一步
