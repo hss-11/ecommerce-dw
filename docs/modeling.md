@@ -152,7 +152,7 @@
 
 ## 4. ER 图
 
-'''mermaid
+```mermaid
 erDiagram
     dim_date ||--o{ dwd_fact_order_item: "date_key 下单日"
     dim_date ||--o{ dwd_fact_payment:"date_key 批准日代理"
@@ -229,4 +229,4 @@ erDiagram
         INTEGER is_on_time
         INTEGER is_payment_missing
     }
-'''
+```
