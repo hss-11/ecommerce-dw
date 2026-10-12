@@ -1,10 +1,10 @@
 # 项目进度日志
 
 ## 当前状态
-- 阶段：W2 完成 ✅ → W3 待启动
-- 上次更新：2026-09-18
+- 阶段：W4 完成 ✅ → W5 待启动
+- 上次更新：2026-10-12
 - 卡点：无
-- 待办：W3 启动（ODS 层：CSV→Parquet 按 dt 分区落地 + reconcile.py 对账脚本）
+- 待办：W5 启动（DWS 汇总层 + ADS 指标层：8 个核心指标，窗口函数实战）
 
 
 ## 环境信息（重装或换设备时看这里）
@@ -37,6 +37,9 @@
 - [x] Day 4 定位 776 差额真因（内连接静默丢弃，非"无支付"）
 - [x] Day 5 Git配置完成
 - [x] W2 产出 docs/modeling.md 与 docs/data_dictionary.md（S5 交叉核对通过）
+- [x] W3 ODS 贴源层：etl/extract/ods_load.py + reconcile.py（9 表 CSV→Parquet 按 dt 分区，行数/主键/金额三方对账全 PASS，二次运行幂等验证通过）
+- [x] W4 DWD 明细层：etl/transform/dwd_build.py + dwd_reconcile.py（5 维 + 4 事实共 9 表；44 项断言全 PASS；GMV/支付流水/平台实收/准时率/复购率等核心指标与原始 CSV 独立复算逐项吻合）
+- [x] W4 文档 v1.1：data_dictionary.md 与 modeling.md 按落地结果精确化（delivered 缺送达时间戳 138→8、is_review_id_reused 口径细化为 789 个 review_id / 1,603 行 / 膨胀 814 行）
 
 ## 关键决策记录（面试讲项目的素材）
 | 日期 | 决策 | 理由 |
@@ -63,6 +66,14 @@
 | 09-18 | "最近/当前"类计算锚点写死 2018-10-18 | 静态数据集禁用真实当天日期；锚点 = 最大日期后一天，唯一化后任何时间重跑结果一致（S4 定稿时补硬编码） |
 | 09-18 | 复购率/N 日留存按下单行为计入全部订单状态 | 衡量"再次下单"意愿而非成交；全周期参考值 3.5% 即基于全状态订单集计算；例外：RFM 的 M 分量绑定 GMV 口径只算 delivered |
 | 09-18 | order_status 显式保留在事实表内（2.1/2.2/2.4） | S5 交叉核对发现：字典过滤依赖 order_status，建模原文未声明保留该字段——补状态字段要素行 + ER 图属性，消除设计断点 |
+| 10-12 | ODS 分区口径：dt = 数据快照批次日期 2018-10-18，9 表统一 | order_items/payments 无日期列无法按业务日期分区；贴源层按同步批次分区是业界标准，业务日期分区留给 DWD；口径改动只需改脚本配置表一行 |
+| 10-12 | ODS 贴源层 all_varchar 读取，不做类型转换 | 贴源层必须忠实源文件；类型转换显式留给 DWD，避免解析歧义在源头被静默固化 |
+| 10-12 | Parquet 写入幂等 = 先删表目录再写入 | DuckDB 分区写是追加文件语义，不删目录重跑会多出一批文件导致数据翻倍 |
+| 10-12 | is_on_time 用时间戳级比较（实际送达 <= 承诺送达），不用日期级 | 日期级会把"承诺当日稍晚送达"算作准时，延迟单由 7,827 变成 6,535，与 W1 基准及字典 4.2 的约 91.9% 口径不符 |
+| 10-12 | 类型转换集中在 DWD 层（ID 一律 VARCHAR、金额 DOUBLE、时间戳 TIMESTAMP、计数与标记 INTEGER） | ODS 层 all_varchar 忠实源文件，解析歧义只在 DWD 显式处理一次；S3a 的 INTEGER/VARCHAR 教训由本层承接 |
+| 10-12 | dim_seller 实做 SCD2：对订单数最多的卖家模拟 2018-01-01 城市变更（v1 关闭 / v2 生效），事实表按下单日点对点匹配 join | 静态快照数据本无属性变更，用确定性选定的对象做 SCD2 工程练手；3,095 个自然键 → 3,096 行（1 条历史版本），可验证 |
+| 10-12 | customer_key 一律取 customer_unique_id；dim_customer 按 Type 1 取该自然人最近一次订单的城市（决胜字段 customer_id） | customer_id 一单一号会让复购率恒为 0；加唯一决胜字段消除时间戳并列导致的随机结果 |
+| 10-12 | payment_type 作为低基数描述属性留在 dwd_fact_payment 内，不单独建维度表 | 支付方式仅 5 个取值且无描述性属性，打平进事实表省一次 join（总线矩阵"支付方式"维度的落地方式） |
 
 
 
@@ -81,12 +92,13 @@
 | 09-15 | mermaid.live 语法错误 | 粘贴时把围栏语言标识 mermaid 当成了代码第一行 | Mermaid 代码必须从 erDiagram 等图表类型关键字开始 |
 | 09-15 | mermaid.live 报 JSON 错误 | 代码残留进入了 Config 标签页（JSON 编辑器） | 无痕窗口重开；读报错先抓关键词定方向 |
 | 09-15 | GitHub 上 ER 图只显示代码 | 围栏用了三个单引号而非反引号（中文输入法反引号键输出 ·） | 切英文输入法打反引号 |
+| 10-12 | DWD 构建与对账连锁失败：`WinError 32`（文件被占用）、`No magic bytes found at end of file` | 上一次运行被中断，Parquet 未写完即被杀，留下缺尾部魔数的残缺文件；该文件又被外部进程句柄占用（无删除共享），脚本"先删后写"的幂等第一步必然失败 | 中断后先清理残表目录再重跑；占用无法释放期间用脚本预留的 `ODS_DIR` 环境变量把输入临时指向完好副本；对账脚本对残缺文件报魔数错误属"可发现的硬失败"，比静默出数安全 |
 
 
 ## 下一步
-- [ ] W3-S1 拍板 dt 分区口径：事实流转表按下单日（order_purchase_timestamp 的日期）分区；无日期字段或静态快照表（geolocation / products / sellers / cat_trans）不分区、整表落地——分区键一旦选定不轻易改，改则全量重刷
-- [ ] W3-S2 写 etl/extract 落地脚本：DuckDB read_csv_auto 读 9 张 CSV → COPY ... (FORMAT PARQUET, PARTITION_BY (dt)) 落 warehouse/duck/ods/<表名>/；重复运行幂等（OVERWRITE 语义），脚本 pathlib 自适应定位
-- [ ] W3-S3 写 etl/extract/reconcile.py：逐表对账三指标——CSV vs Parquet 的行数 / 主键去重数 / 金额 SUM（order_items、payments），输出差异清单，全部零差异才算通过
-- [ ] W3-S4 跑通并记录对账结果，产出 9 张 ODS 表 + reconcile.py → 里程碑 commit（chore: ODS 贴源层 CSV→Parquet 分区落地与对账脚本）
-- [ ] W3 封盘后开 W4：5 维度表（含 SCD2 模拟）+ 4 事实表落地 SQL；前置步骤不可省——DESCRIBE 逐字段核对真实类型（S3a 的 INTEGER/VARCHAR 教训）
+- [ ] W5-S1 确定 DWS 汇总粒度：按"维度组合"设计汇总表（用户 / 商品 / 卖家 / 地区 / 时间），先对齐字典里 8 个核心指标各自需要的粒度，避免建了用不上的表
+- [ ] W5-S2 建 DWS 汇总层：窗口函数实战落地（复购率与 N 日留存的分母口径、RFM 三分量与锚点 2018-10-18、转化漏斗的累计通过率、评分分布）
+- [ ] W5-S3 建 ADS 指标层：将字典口径固化为指标表（GMV / 客单价 / 订单量 / 支付流水 / 平台实收 / 准时交付率 / 平均配送时长 / 留评率）
+- [ ] W5-S4 逐项对账：ADS 指标值 vs 字典参考值与 dwd_reconcile 基准（复用冻结基准 + 容差断言模式）→ 里程碑 commit
+- [ ] W5 封盘后开 W6：SQL 性能调优专项（EXPLAIN ANALYZE / 索引 / 调优前后耗时对比 → docs/benchmark.md，🔴 投递节点）
 
