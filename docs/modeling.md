@@ -33,6 +33,7 @@
 | 度量 | item_price 商品金额（可加）、freight_value 运费（可加）、quantity 恒为1（可加，便于SUM计数） |
 | 维度外键 | date_key(下单日)、customer_key、product_key、seller_key、geo_key |
 | 退化维度 | order_id (单据号，留在表内用于回查与对账) |
+| 状态字段 | order_status（低基数状态标志，保留在事实表内；成交类指标靠它过滤 delivered） |
 | 过滤规则 | 不过滤，保留全量；canceled/unavailable 订单以标记区分 |
 | 标记字段 | is_valid_order (delivered 及进行中 = 1，canceled/unavailable = 0) |
 
@@ -44,6 +45,7 @@
 | 度量 | payment_value 支付金额 (可加，但含分期利息，≠ GMV),payment_installments 分期数 (不可加) |
 | 维度外键 | date_key (以 order_approved_at 代理，payments 无独立时间字段)、customer_key |
 | 退化维度 | order_id、payment_sequential (组合起来定位一笔支付) |
+| 状态字段 | order_status（低基数状态标志，保留在事实表内；平台实收靠它剔除 canceled/unavailable） |
 | 过滤规则 | 不过滤，保留全量 (含775个无效订单的支付记录，用于平台实收口径) |
 | 标记字段 | is_not_defined_payment (payment_type = 'not_defined' 时 = 1，标记异常支付) | 
 
@@ -64,8 +66,9 @@
 | 粒度 | 一行 = 一个订单的物流全生命周期；主键就是 order_id |
 | 数据来源 | orders 表自身 |
 | 度量 | 各阶段时长 (下单 -> 批准、批准-> 发货、发货 -> 送达、承诺送达 VS 实际送达的差值)，单位小时或天(理论可加，实务只用AVG) |
-| 维度外键 | 多个date_key 角色 (下单日、发货日、送达日——对应总线矩阵"日期含义不同") |
+| 维度外键 | 多个date_key 角色 (下单日、发货日、送达日——对应总线矩阵"日期含义不同")、customer_key |
 | 退化维度 | order_id |
+| 状态字段 | order_status（低基数状态标志，保留在事实表内；成交类指标靠它过滤 delivered） |
 | 过滤规则 | 保留全量（含 canceled/unavailable），以 is_valid_order 标记区分。理由：①与 order_item 事实表口径一致，降低使用者的记忆成本；②无效订单的物流时间戳为 NULL，不参与 AVG 计算，不污染时长类指标；③保留取消订单可支持"订单在履约哪个环节被终止"的归因分析 |
 | 标记字段 | is_valid_order、is_on_time（实际送达 <= 承诺送达 = 1）、is_payment_missing（W1 发现⑬ 的那 1 单） |
 
@@ -206,6 +209,7 @@ erDiagram
         DOUBLE item_price
         DOUBLE freight_value
         INTEGER is_valid_order
+        VARCHAR order_status
     }
     dwd_fact_payment {
         VARCHAR order_id PK
@@ -214,6 +218,7 @@ erDiagram
         VARCHAR customer_key FK
         DOUBLE payment_value
         INTEGER payment_installments
+        VARCHAR order_status
     }
     dwd_fact_review {
         VARCHAR review_id PK
@@ -228,5 +233,6 @@ erDiagram
         VARCHAR customer_key FK
         INTEGER is_on_time
         INTEGER is_payment_missing
+        VARCHAR order_status
     }
 ```

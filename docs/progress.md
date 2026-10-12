@@ -1,10 +1,10 @@
 # 项目进度日志
 
 ## 当前状态
-- 阶段：W1 完成 ✅ → 进入 W2 维度建模设计
-- 上次更新：2026-09-14
+- 阶段：W2 完成 ✅ → W3 待启动
+- 上次更新：2026-09-18
 - 卡点：无
-- 待办：补查 9/10/11 → 补全 exploration_notes.md 第五节 → Day 5 Git 首次推送
+- 待办：W3 启动（ODS 层：CSV→Parquet 按 dt 分区落地 + reconcile.py 对账脚本）
 
 
 ## 环境信息（重装或换设备时看这里）
@@ -36,6 +36,7 @@
 - [x] Day 4 推翻并重建 reviews 去重方案（改为组合主键不去重）
 - [x] Day 4 定位 776 差额真因（内连接静默丢弃，非"无支付"）
 - [x] Day 5 Git配置完成
+- [x] W2 产出 docs/modeling.md 与 docs/data_dictionary.md（S5 交叉核对通过）
 
 ## 关键决策记录（面试讲项目的素材）
 | 日期 | 决策 | 理由 |
@@ -59,6 +60,9 @@
 | 09-14 | 776 单无商品明细：98.87% 属 canceled/unavailable，排除出有效订单集 | 业务正常现象，非数据事故；用 order_items JOIN 会静默丢这 0.78% |
 | 09-14 | 唯一 1 单"已送达无支付"不删除，加 is_payment_missing 标记并纳入日常监控 | 金额影响可忽略，但突增即意味支付链路故障，需可发现 |
 | 09-14 | 区分 GMV / 平台实收 / 支付流水三个指标 | 775 个无效订单实收 16.26 万 BRL 涉及退款，三者混用是最常见分析错误 |
+| 09-18 | "最近/当前"类计算锚点写死 2018-10-18 | 静态数据集禁用真实当天日期；锚点 = 最大日期后一天，唯一化后任何时间重跑结果一致（S4 定稿时补硬编码） |
+| 09-18 | 复购率/N 日留存按下单行为计入全部订单状态 | 衡量"再次下单"意愿而非成交；全周期参考值 3.5% 即基于全状态订单集计算；例外：RFM 的 M 分量绑定 GMV 口径只算 delivered |
+| 09-18 | order_status 显式保留在事实表内（2.1/2.2/2.4） | S5 交叉核对发现：字典过滤依赖 order_status，建模原文未声明保留该字段——补状态字段要素行 + ER 图属性，消除设计断点 |
 
 
 
@@ -72,18 +76,17 @@
 | 09-14 | reviews 去重方案作废 | ORDER BY 时间戳存在并列值，ROW_NUMBER 分配随机 | 改组合主键不去重；若去重须加 order_id 做 tie-breaker |
 | 09-14 | 误判"776 个订单无支付" | 未审查自己的 SQL 就下结论；实际是内连接取了交集 | 补查 7 验证否定假设，真因是 776 单无商品明细 |
 | 09-14 | git push 反复询问指纹，日志出现 `Could not create directory '/c/Users/\272\372.../.ssh'` | Git 自带 ssh 按 UTF-8 解析路径，中文用户名是 GBK 字节，写不了 known_hosts（认证因 -i 显式指定密钥未受影响） | `git config core.sshCommand "C:/Windows/System32/OpenSSH/ssh.exe"` 改用系统自带 ssh |
+| 09-14 | PyCharm 终端 git 无法识别 | 环境变量是程序启动时的快照，PyCharm 在装 Git 前打开 | 完全退出 PyCharm 重启；装完命令行工具必须重启已打开的终端/IDE |
+| 09-14 | cd /d 在 PyCharm 终端报错 | PyCharm 终端是 PowerShell，/d 是 cmd 专属开关 | 看提示符区分终端：PS 开头=PowerShell（直接 cd 路径）；盘符开头=cmd（需 /d） |
+| 09-15 | mermaid.live 语法错误 | 粘贴时把围栏语言标识 mermaid 当成了代码第一行 | Mermaid 代码必须从 erDiagram 等图表类型关键字开始 |
+| 09-15 | mermaid.live 报 JSON 错误 | 代码残留进入了 Config 标签页（JSON 编辑器） | 无痕窗口重开；读报错先抓关键词定方向 |
+| 09-15 | GitHub 上 ER 图只显示代码 | 围栏用了三个单引号而非反引号（中文输入法反引号键输出 ·） | 切英文输入法打反引号 |
 
 
 ## 下一步
-- [ ] 跑补查 9/10/11，填完 exploration_notes.md 第五节表格
-- [ ] 手敲 SQL 模式笔记：CASE WHEN 分桶、HAVING vs WHERE、窗口函数决胜键、内连接丢数据
-- [ ] Day 5 装 Git（C 盘，Initial branch 填 main）
-- [ ] Day 5 配 git config 五条（含 core.quotepath false 解决中文乱码）
-- [ ] Day 5 生成 SSH 密钥（ed25519）并上传公钥到 GitHub
-- [ ] Day 5 GitHub 建空仓库 ecommerce-dw（三个勾全不勾，Public）
-- [ ] Day 5 给 10 个空目录加 .gitkeep
-- [ ] Day 5 git init → remote add → add → **status 检查** → commit → push
-- [ ] Day 5 README 补「数据获取」和「快速开始」两节
-- [ ] W2 产出 docs/modeling.md（总线矩阵 + 4 事实表粒度声明 + 5 维度表设计 + ER 图）
-- [ ] W2 产出 docs/data_dictionary.md（指标口径字典）
+- [ ] W3-S1 拍板 dt 分区口径：事实流转表按下单日（order_purchase_timestamp 的日期）分区；无日期字段或静态快照表（geolocation / products / sellers / cat_trans）不分区、整表落地——分区键一旦选定不轻易改，改则全量重刷
+- [ ] W3-S2 写 etl/extract 落地脚本：DuckDB read_csv_auto 读 9 张 CSV → COPY ... (FORMAT PARQUET, PARTITION_BY (dt)) 落 warehouse/duck/ods/<表名>/；重复运行幂等（OVERWRITE 语义），脚本 pathlib 自适应定位
+- [ ] W3-S3 写 etl/extract/reconcile.py：逐表对账三指标——CSV vs Parquet 的行数 / 主键去重数 / 金额 SUM（order_items、payments），输出差异清单，全部零差异才算通过
+- [ ] W3-S4 跑通并记录对账结果，产出 9 张 ODS 表 + reconcile.py → 里程碑 commit（chore: ODS 贴源层 CSV→Parquet 分区落地与对账脚本）
+- [ ] W3 封盘后开 W4：5 维度表（含 SCD2 模拟）+ 4 事实表落地 SQL；前置步骤不可省——DESCRIBE 逐字段核对真实类型（S3a 的 INTEGER/VARCHAR 教训）
 
