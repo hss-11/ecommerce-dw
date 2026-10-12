@@ -1,6 +1,6 @@
 # 维度建模设计文档
 
-> 版本：v1.0｜创建日期：2026-09-15
+> 版本：v1.1｜创建日期：2026-09-15｜最近修订：2026-10-12（W4 落地后精确化）
 > 本文档是 ecommerce-dw 数仓的设计图纸：总线矩阵 → 事实表设计 → 维度表设计 → ER图。
 > 设计依据：docs/exploration_notes.md 中的 15 项探查结论。
 
@@ -8,10 +8,10 @@
 
 | 业务过程 \ 维度 | 日期 | 客户 | 商品 | 卖家 | 地理 | 支付方式 |
 | --- | --- | --- |----| --- | --- |-----|
-| 下单（订单商品项） | √ | √ | √  | √ | √ | —   |
-| 支付 | √ | √ | —  | — | — | √   |
-| 评价 | √ | √ | —  | — | — | —   |
-| 物流配送 | √ | √ | —  | √ | √ | —   |
+| 下单（订单商品项） | ✓ | ✓ | ✓  | ✓ | ✓ | —   |
+| 支付 | ✓ | ✓ | —  | — | — | ✓   |
+| 评价 | ✓ | ✓ | —  | — | — | —   |
+| 物流配送 | ✓ | ✓ | —  | ✓ | ✓ | —   |
 
 
 ### 设计说明
@@ -44,7 +44,7 @@
 | 数据来源 | payments INNER JOIN orders |
 | 度量 | payment_value 支付金额 (可加，但含分期利息，≠ GMV),payment_installments 分期数 (不可加) |
 | 维度外键 | date_key (以 order_approved_at 代理，payments 无独立时间字段)、customer_key |
-| 退化维度 | order_id、payment_sequential (组合起来定位一笔支付) |
+| 退化维度 | order_id、payment_sequential (组合起来定位一笔支付)、payment_type (低基数支付方式，兑现总线矩阵"支付×支付方式"维度；不单独建维表) |
 | 状态字段 | order_status（低基数状态标志，保留在事实表内；平台实收靠它剔除 canceled/unavailable） |
 | 过滤规则 | 不过滤，保留全量 (含775个无效订单的支付记录，用于平台实收口径) |
 | 标记字段 | is_not_defined_payment (payment_type = 'not_defined' 时 = 1，标记异常支付) | 
@@ -70,7 +70,7 @@
 | 退化维度 | order_id |
 | 状态字段 | order_status（低基数状态标志，保留在事实表内；成交类指标靠它过滤 delivered） |
 | 过滤规则 | 保留全量（含 canceled/unavailable），以 is_valid_order 标记区分。理由：①与 order_item 事实表口径一致，降低使用者的记忆成本；②无效订单的物流时间戳为 NULL，不参与 AVG 计算，不污染时长类指标；③保留取消订单可支持"订单在履约哪个环节被终止"的归因分析 |
-| 标记字段 | is_valid_order、is_on_time（实际送达 <= 承诺送达 = 1）、is_payment_missing（W1 发现⑬ 的那 1 单） |
+| 标记字段 | is_valid_order、is_on_time（实际送达时间戳 <= 承诺送达时间戳 = 1，时间戳级比较；承诺字段时间分量恒为 00:00:00，若退化为日期级比较会漏算 1,292 单延迟，W4 已按时间戳级落地）、is_payment_missing（W1 发现⑬ 的那 1 单） |
 
 ## 3. 维度表设计
 
@@ -96,7 +96,7 @@
 ### 3.2 dim_seller (卖家维度表，SCD Type 2)
 - 来源：sellers 表
 - 变化属性：seller_city、seller_state（卖家搬迁场景）
-- 注：Olist 为静态快照数据，SCD2 结构用于工程练手，W4 将模拟属性变更
+- 注：Olist 为静态快照数据，SCD2 结构用于工程练手，W4 将模拟变更
 
 | 字段 | 类型 | 说明 |
 | -- | -- | -- |
@@ -218,6 +218,7 @@ erDiagram
         VARCHAR customer_key FK
         DOUBLE payment_value
         INTEGER payment_installments
+        VARCHAR payment_type
         VARCHAR order_status
     }
     dwd_fact_review {
