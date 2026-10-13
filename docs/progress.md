@@ -1,10 +1,10 @@
 # 项目进度日志
 
 ## 当前状态
-- 阶段：W4 完成 ✅ → W5 待启动
+- 阶段：W5 完成 ✅ → W6 待启动
 - 上次更新：2026-10-12
 - 卡点：无
-- 待办：W5 启动（DWS 汇总层 + ADS 指标层：8 个核心指标，窗口函数实战）
+- 待办：W6 启动（SQL 性能调优专项：EXPLAIN ANALYZE / 索引 / 调优前后耗时对比）
 
 
 ## 环境信息（重装或换设备时看这里）
@@ -40,6 +40,8 @@
 - [x] W3 ODS 贴源层：etl/extract/ods_load.py + reconcile.py（9 表 CSV→Parquet 按 dt 分区，行数/主键/金额三方对账全 PASS，二次运行幂等验证通过）
 - [x] W4 DWD 明细层：etl/transform/dwd_build.py + dwd_reconcile.py（5 维 + 4 事实共 9 表；44 项断言全 PASS；GMV/支付流水/平台实收/准时率/复购率等核心指标与原始 CSV 独立复算逐项吻合）
 - [x] W4 文档 v1.1：data_dictionary.md 与 modeling.md 按落地结果精确化（delivered 缺送达时间戳 138→8、is_review_id_reused 口径细化为 789 个 review_id / 1,603 行 / 膨胀 814 行）
+- [x] W5 DWS 汇总层 + ADS 指标层：etl/transform/dws_build.py + ads_build.py + dws_reconcile.py（DWS 4 表：trade_daily 616 / payment_daily 611 / user_summary 96,096 / product_summary 32,951；ADS 4 表：trade_daily 616 / repurchase 23 / retention_cohort 1,821 / rfm_segment 96,096；27 项对账断言全 PASS，GMV 15,419,773.75 / 订单量 96,478 / 客单价 159.83 / 复购率 3.1188% 与字典基准逐项吻合）
+- [x] W5 文档：docs/dws_design.md 新建（分层原则 / 8 表设计 / RFM 打分定稿 / 对账体系 / 局限）；data_dictionary.md v1.2（3.3 RFM 打分规则与八段映射定稿）
 
 ## 关键决策记录（面试讲项目的素材）
 | 日期 | 决策 | 理由 |
@@ -60,7 +62,7 @@
 | 09-14 | dim_geolocation LEFT JOIN + COALESCE 兜底 | 邮编覆盖率 98.95%，157 个缺失不能因此丢订单 |
 | 09-14 | 类目缺失归 unknown/uncategorized 并在字典声明 | 兜底值不得混入真实类目参与 Top 排名 |
 | 09-14 | 算总数类指标前必须核对 join 是否丢行 | 内连接静默丢弃 776 单（0.78%），不报错 |
-| 09-14 | 776 单无商品明细：98.87% 属 canceled/unavailable，排除出有效订单集 | 业务正常现象，非数据事故；用 order_items JOIN 会静默丢这 0.78% |
+| 09-14 | 775 单无商品明细：98.97%（767/775）属 canceled/unavailable，排除出有效订单集 | 业务正常现象，非数据事故；用 order_items JOIN 会静默丢这 0.78%（776 是交集差额，含 1 单有明细无支付） |
 | 09-14 | 唯一 1 单"已送达无支付"不删除，加 is_payment_missing 标记并纳入日常监控 | 金额影响可忽略，但突增即意味支付链路故障，需可发现 |
 | 09-14 | 区分 GMV / 平台实收 / 支付流水三个指标 | 775 个无效订单实收 16.26 万 BRL 涉及退款，三者混用是最常见分析错误 |
 | 09-18 | "最近/当前"类计算锚点写死 2018-10-18 | 静态数据集禁用真实当天日期；锚点 = 最大日期后一天，唯一化后任何时间重跑结果一致（S4 定稿时补硬编码） |
@@ -74,6 +76,12 @@
 | 10-12 | dim_seller 实做 SCD2：对订单数最多的卖家模拟 2018-01-01 城市变更（v1 关闭 / v2 生效），事实表按下单日点对点匹配 join | 静态快照数据本无属性变更，用确定性选定的对象做 SCD2 工程练手；3,095 个自然键 → 3,096 行（1 条历史版本），可验证 |
 | 10-12 | customer_key 一律取 customer_unique_id；dim_customer 按 Type 1 取该自然人最近一次订单的城市（决胜字段 customer_id） | customer_id 一单一号会让复购率恒为 0；加唯一决胜字段消除时间戳并列导致的随机结果 |
 | 10-12 | payment_type 作为低基数描述属性留在 dwd_fact_payment 内，不单独建维度表 | 支付方式仅 5 个取值且无描述性属性，打平进事实表省一次 join（总线矩阵"支付方式"维度的落地方式） |
+| 10-12 | DWS 只存可加度量，比率一律在 ADS 用"先加总分子分母再相除"现算 | 客单价/复购率/留存率不可加，对日值直接求和是最常见报表错误；DWS 存分子（GMV）与分母（订单量）两个可加度量即可支撑任意粒度重算 |
+| 10-12 | 成交类指标（下单日）与资金类指标（批准日）拆成 trade_daily / payment_daily 两张日级表 | 时间口径不同的指标不做日级对比（字典全局约定）；混放一张表会诱导错误的同日 GMV vs 支付流水对比 |
+| 10-12 | dws_trade_daily 的 GMV 只过滤 delivered；订单数保留全量 order_cnt 与 delivered_order_cnt 双口径 | 首轮误用全量口径（15,843,553.24）对不上字典 2.1 基准；探针确认无明细 delivered 单为 0，单来源聚合即可精确对账，无需 join delivery 表 |
+| 10-12 | RFM 的 F 分量用业务阈值（1→2 / 2→4 / ≥3→5）替代 NTILE | 96.88% 用户 F=1，NTILE(5) 在 F 上塌缩成同一档失去区分度；R/M 保持 NTILE(5) |
+| 10-12 | RFM 八段映射定稿：发展=R高F低、保持=R低F高 | 首轮把"发展/保持"写反，分布数据暴露异常（F高群体占 40% 与复购率 3.12% 矛盾）后对照行业标准修正；修正后 F高 群体 2,997 人，与复购用户数精确一致 |
+| 10-12 | RFM 的 R/M 两个 NTILE 排序列末尾补 customer_unique_id 决胜字段（复审修复） | recency_days 与 monetary 大量并列，缺决胜字段时 NTILE 对并列用户的分档在重跑间漂移（实测同一数据 5 次运行：一般发展 22,208/22,209 跳动，单段最多差 9 人）；补字段后 8 段 5 次运行逐段一致，可复现。这是 09-14 铁律"窗口函数排序必须加唯一决胜字段"的再次踩中 |
 
 
 
@@ -85,7 +93,7 @@
 | 09-13 | 金额对账报 8,182 条不符 | SUM(DISTINCT) 把相同金额的不同商品行去重 | 改用 CTE 先各自聚合到订单粒度再 join |
 | 09-14 | 金额对账误报 8,182 条 | SUM(DISTINCT) 把金额相同的不同商品行去重 | 改 CTE 先各自聚合到订单粒度再 join，实际仅 380 条 |
 | 09-14 | reviews 去重方案作废 | ORDER BY 时间戳存在并列值，ROW_NUMBER 分配随机 | 改组合主键不去重；若去重须加 order_id 做 tie-breaker |
-| 09-14 | 误判"776 个订单无支付" | 未审查自己的 SQL 就下结论；实际是内连接取了交集 | 补查 7 验证否定假设，真因是 776 单无商品明细 |
+| 09-14 | 误判"776 个订单无支付" | 未审查自己的 SQL 就下结论；实际是内连接取了交集 | 补查 7 验证否定假设，真因是 775 单无商品明细（差额 776 = 775 无明细 + 1 有明细无支付） |
 | 09-14 | git push 反复询问指纹，日志出现 `Could not create directory '/c/Users/\272\372.../.ssh'` | Git 自带 ssh 按 UTF-8 解析路径，中文用户名是 GBK 字节，写不了 known_hosts（认证因 -i 显式指定密钥未受影响） | `git config core.sshCommand "C:/Windows/System32/OpenSSH/ssh.exe"` 改用系统自带 ssh |
 | 09-14 | PyCharm 终端 git 无法识别 | 环境变量是程序启动时的快照，PyCharm 在装 Git 前打开 | 完全退出 PyCharm 重启；装完命令行工具必须重启已打开的终端/IDE |
 | 09-14 | cd /d 在 PyCharm 终端报错 | PyCharm 终端是 PowerShell，/d 是 cmd 专属开关 | 看提示符区分终端：PS 开头=PowerShell（直接 cd 路径）；盘符开头=cmd（需 /d） |
@@ -93,12 +101,14 @@
 | 09-15 | mermaid.live 报 JSON 错误 | 代码残留进入了 Config 标签页（JSON 编辑器） | 无痕窗口重开；读报错先抓关键词定方向 |
 | 09-15 | GitHub 上 ER 图只显示代码 | 围栏用了三个单引号而非反引号（中文输入法反引号键输出 ·） | 切英文输入法打反引号 |
 | 10-12 | DWD 构建与对账连锁失败：`WinError 32`（文件被占用）、`No magic bytes found at end of file` | 上一次运行被中断，Parquet 未写完即被杀，留下缺尾部魔数的残缺文件；该文件又被外部进程句柄占用（无删除共享），脚本"先删后写"的幂等第一步必然失败 | 中断后先清理残表目录再重跑；占用无法释放期间用脚本预留的 `ODS_DIR` 环境变量把输入临时指向完好副本；对账脚本对残缺文件报魔数错误属"可发现的硬失败"，比静默出数安全 |
+| 10-12 | W5 首轮 SUM(dws_trade_daily.gmv) = 15,843,553.24 对不上字典 GMV 基准 | 构建时未按字典 2.1 过滤 delivered，把全量订单金额当成 GMV | 先跑探针摸清真实数字再冻结对账断言；gmv/item_amt/freight_amt 改 CASE WHEN delivered 过滤，新增 delivered_order_cnt 列，aov 分母同步修正——对账驱动开发，而非事后补对账 |
+| 10-12 | W5 复审发现 RFM 分层人数不可复现（27 项断言却全 PASS） | NTILE 排序列有大量并列值且无唯一决胜字段；断言只覆盖行数 / GMV 合计 / 段数，恰好全落在漂移盲区 | 两处 NTILE 各补 customer_unique_id 决胜字段并重跑；并固化教训——**对账断言要通过"同数据多跑几次比对"来验证，断言全绿不等于结果稳定** |
 
 
 ## 下一步
-- [ ] W5-S1 确定 DWS 汇总粒度：按"维度组合"设计汇总表（用户 / 商品 / 卖家 / 地区 / 时间），先对齐字典里 8 个核心指标各自需要的粒度，避免建了用不上的表
-- [ ] W5-S2 建 DWS 汇总层：窗口函数实战落地（复购率与 N 日留存的分母口径、RFM 三分量与锚点 2018-10-18、转化漏斗的累计通过率、评分分布）
-- [ ] W5-S3 建 ADS 指标层：将字典口径固化为指标表（GMV / 客单价 / 订单量 / 支付流水 / 平台实收 / 准时交付率 / 平均配送时长 / 留评率）
-- [ ] W5-S4 逐项对账：ADS 指标值 vs 字典参考值与 dwd_reconcile 基准（复用冻结基准 + 容差断言模式）→ 里程碑 commit
-- [ ] W5 封盘后开 W6：SQL 性能调优专项（EXPLAIN ANALYZE / 索引 / 调优前后耗时对比 → docs/benchmark.md，🔴 投递节点）
+- [x] W5-S1 汇总粒度：对齐字典指标需求，落成 4 张 DWS 表（日交易 / 日资金 / 用户 / 商品）
+- [x] W5-S2 DWS 汇总层：dws_build.py 落地（RFM 三分量锚点 2018-10-18；F 用业务阈值替代塌缩的 NTILE）
+- [x] W5-S3 ADS 指标层：ads_build.py 落地（客单价先加再除 / 7 日均线 / 全周期+90D 滚动复购 / N 日留存剔除不完整队列 / RFM 八段）
+- [x] W5-S4 逐项对账：dws_reconcile.py 27 项断言全 PASS（复用 W4 冻结基准 + 容差断言模式）→ 待里程碑 commit
+- [ ] W6：SQL 性能调优专项（EXPLAIN ANALYZE / 索引 / 调优前后耗时对比 → docs/benchmark.md，🔴 投递节点）
 
