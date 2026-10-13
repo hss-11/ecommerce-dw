@@ -1,0 +1,69 @@
+SELECT COUNT(*) FROM v_delivery d
+            WHERE d.order_id IN (SELECT order_id FROM v_payment)
+
+============================================================
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+EXPLAIN ANALYZE              SELECT COUNT(*) FROM v_delivery d             WHERE d.order_id IN (SELECT order_id FROM v_payment)         
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0302s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│    UNGROUPED_AGGREGATE    │
+│    ────────────────────   │
+│        Aggregates:        │
+│        count_star()       │
+│                           │
+│                           │
+│                           │
+│           1 row           │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         HASH_JOIN         │
+│    ────────────────────   │
+│   Join Type: RIGHT_SEMI   │
+│                           │
+│        Conditions:        │
+│       #0 = order_id       ├──────────────┐
+│                           │              │
+│                           │              │
+│                           │              │
+│        99,440 rows        │              │
+│           0.01s           │              │
+└─────────────┬─────────────┘              │
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│         TABLE_SCAN        ││         TABLE_SCAN        │
+│    ────────────────────   ││    ────────────────────   │
+│         Function:         ││         Function:         │
+│        READ_PARQUET       ││        READ_PARQUET       │
+│                           ││                           │
+│   Projections: order_id   ││   Projections: order_id   │
+│    Total Files Read: 1    ││    Total Files Read: 1    │
+│                           ││                           │
+│        Filename(s):       ││        Filename(s):       │
+│     /mnt/work/staging     ││     /mnt/work/staging     │
+│    /warehouse/duck/dwd    ││    /warehouse/duck/dwd    │
+│   /dwd_fact_payment/*/*   ││   /dwd_fact_delivery/*/*  │
+│          .parquet         ││          .parquet         │
+│                           ││                           │
+│                           ││                           │
+│                           ││                           │
+│        103,886 rows       ││        99,441 rows        │
+│           0.01s           ││           0.01s           │
+└───────────────────────────┘└───────────────────────────┘

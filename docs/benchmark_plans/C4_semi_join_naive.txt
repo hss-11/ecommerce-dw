@@ -1,0 +1,88 @@
+SELECT COUNT(DISTINCT d.order_id)
+            FROM v_delivery d JOIN v_payment p ON d.order_id = p.order_id
+
+============================================================
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+EXPLAIN ANALYZE              SELECT COUNT(DISTINCT d.order_id)             FROM v_delivery d JOIN v_payment p ON d.order_id = p.order_id         
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0308s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│    UNGROUPED_AGGREGATE    │
+│    ────────────────────   │
+│        Aggregates:        │
+│     count(DISTINCT #0)    │
+│                           │
+│                           │
+│                           │
+│           1 row           │
+│           0.01s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│          order_id         │
+│                           │
+│                           │
+│                           │
+│        103,886 rows       │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         HASH_JOIN         │
+│    ────────────────────   │
+│      Join Type: INNER     │
+│                           │
+│        Conditions:        │
+│    order_id = order_id    ├──────────────┐
+│                           │              │
+│                           │              │
+│                           │              │
+│        103,886 rows       │              │
+│           0.01s           │              │
+└─────────────┬─────────────┘              │
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│         TABLE_SCAN        ││         TABLE_SCAN        │
+│    ────────────────────   ││    ────────────────────   │
+│         Function:         ││         Function:         │
+│        READ_PARQUET       ││        READ_PARQUET       │
+│                           ││                           │
+│   Projections: order_id   ││   Projections: order_id   │
+│                           ││    Total Files Read: 1    │
+│      Dynamic Filters:     ││                           │
+│    optional: order_id>=   ││        Filename(s):       │
+│'00010242fe8c5a6d1ba2dd792c││     /mnt/work/staging     │
+│   b16214' AND optional:   ││    /warehouse/duck/dwd    │
+│         order_id<=        ││   /dwd_fact_delivery/*/*  │
+│'fffe41c64501cc87c801fd61db││          .parquet         │
+│          3f6244'          ││                           │
+│                           ││                           │
+│    Total Files Read: 1    ││                           │
+│                           ││                           │
+│        Filename(s):       ││           0.00s           │
+│     /mnt/work/staging     ││                           │
+│    /warehouse/duck/dwd    ││                           │
+│   /dwd_fact_payment/*/*   ││                           │
+│          .parquet         ││                           │
+│                           ││                           │
+│                           ││                           │
+│                           ││                           │
+│        103,886 rows       ││        99,441 rows        │
+│           0.01s           ││          (0.00s)          │
+└───────────────────────────┘└───────────────────────────┘

@@ -1,0 +1,133 @@
+WITH pay AS (
+                SELECT order_id, SUM(payment_value) AS pay
+                FROM v_payment GROUP BY order_id
+            )
+            SELECT d.customer_key, COUNT(*), SUM(pay.pay)
+            FROM v_delivery d JOIN pay ON d.order_id = pay.order_id
+            GROUP BY d.customer_key
+
+============================================================
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+EXPLAIN ANALYZE              WITH pay AS (                 SELECT order_id, SUM(payment_value) AS pay                 FROM v_payment GROUP BY order_id             )             SELECT d.customer_key, COUNT(*), SUM(pay.pay)             FROM v_delivery d JOIN pay ON d.order_id = pay.order_id             GROUP BY d.customer_key         
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0520s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│       HASH_GROUP_BY       │
+│    ────────────────────   │
+│         Groups: #0        │
+│                           │
+│        Aggregates:        │
+│        count_star()       │
+│          sum(#1)          │
+│                           │
+│                           │
+│                           │
+│        96,095 rows        │
+│           0.01s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│        customer_key       │
+│            pay            │
+│                           │
+│                           │
+│                           │
+│        99,440 rows        │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         HASH_JOIN         │
+│    ────────────────────   │
+│      Join Type: INNER     │
+│                           │
+│        Conditions:        │
+│    order_id = order_id    ├──────────────┐
+│                           │              │
+│                           │              │
+│                           │              │
+│        99,440 rows        │              │
+│           0.01s           │              │
+└─────────────┬─────────────┘              │
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│         TABLE_SCAN        ││       HASH_GROUP_BY       │
+│    ────────────────────   ││    ────────────────────   │
+│         Function:         ││         Groups: #0        │
+│        READ_PARQUET       ││    Aggregates: sum(#1)    │
+│                           ││                           │
+│        Projections:       ││                           │
+│          order_id         ││                           │
+│        customer_key       ││                           │
+│                           ││           0.01s           │
+│      Dynamic Filters:     ││                           │
+│    optional: order_id>=   ││                           │
+│'00010242fe8c5a6d1ba2dd792c││                           │
+│   b16214' AND optional:   ││                           │
+│         order_id<=        ││                           │
+│'fffe41c64501cc87c801fd61db││                           │
+│          3f6244'          ││                           │
+│                           ││                           │
+│    Total Files Read: 1    ││                           │
+│                           ││                           │
+│        Filename(s):       ││                           │
+│     /mnt/work/staging     ││                           │
+│    /warehouse/duck/dwd    ││                           │
+│   /dwd_fact_delivery/*/*  ││                           │
+│          .parquet         ││                           │
+│                           ││                           │
+│                           ││                           │
+│                           ││                           │
+│        99,441 rows        ││        99,440 rows        │
+│           0.02s           ││          (0.01s)          │
+└───────────────────────────┘└─────────────┬─────────────┘
+                             ┌─────────────┴─────────────┐
+                             │         PROJECTION        │
+                             │    ────────────────────   │
+                             │          order_id         │
+                             │       payment_value       │
+                             │                           │
+                             │                           │
+                             │                           │
+                             │        103,886 rows       │
+                             │           0.00s           │
+                             └─────────────┬─────────────┘
+                             ┌─────────────┴─────────────┐
+                             │         TABLE_SCAN        │
+                             │    ────────────────────   │
+                             │         Function:         │
+                             │        READ_PARQUET       │
+                             │                           │
+                             │        Projections:       │
+                             │          order_id         │
+                             │       payment_value       │
+                             │                           │
+                             │    Total Files Read: 1    │
+                             │                           │
+                             │        Filename(s):       │
+                             │     /mnt/work/staging     │
+                             │    /warehouse/duck/dwd    │
+                             │   /dwd_fact_payment/*/*   │
+                             │          .parquet         │
+                             │                           │
+                             │                           │
+                             │                           │
+                             │        103,886 rows       │
+                             │           0.00s           │
+                             └───────────────────────────┘

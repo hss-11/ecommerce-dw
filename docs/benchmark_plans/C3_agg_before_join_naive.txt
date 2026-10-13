@@ -1,0 +1,96 @@
+SELECT d.customer_key, COUNT(DISTINCT d.order_id), SUM(p.payment_value)
+            FROM v_delivery d JOIN v_payment p ON d.order_id = p.order_id
+            GROUP BY d.customer_key
+
+============================================================
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+EXPLAIN ANALYZE              SELECT d.customer_key, COUNT(DISTINCT d.order_id), SUM(p.payment_value)             FROM v_delivery d JOIN v_payment p ON d.order_id = p.order_id             GROUP BY d.customer_key         
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0558s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│       HASH_GROUP_BY       │
+│    ────────────────────   │
+│         Groups: #0        │
+│                           │
+│        Aggregates:        │
+│     count(DISTINCT #1)    │
+│          sum(#2)          │
+│                           │
+│                           │
+│                           │
+│        96,095 rows        │
+│           0.03s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│        customer_key       │
+│          order_id         │
+│       payment_value       │
+│                           │
+│                           │
+│                           │
+│        103,886 rows       │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         HASH_JOIN         │
+│    ────────────────────   │
+│      Join Type: INNER     │
+│                           │
+│        Conditions:        │
+│    order_id = order_id    ├──────────────┐
+│                           │              │
+│                           │              │
+│                           │              │
+│        103,886 rows       │              │
+│           0.01s           │              │
+└─────────────┬─────────────┘              │
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│         TABLE_SCAN        ││         TABLE_SCAN        │
+│    ────────────────────   ││    ────────────────────   │
+│         Function:         ││         Function:         │
+│        READ_PARQUET       ││        READ_PARQUET       │
+│                           ││                           │
+│        Projections:       ││        Projections:       │
+│          order_id         ││          order_id         │
+│        customer_key       ││       payment_value       │
+│                           ││                           │
+│      Dynamic Filters:     ││    Total Files Read: 1    │
+│    optional: order_id>=   ││                           │
+│'00010242fe8c5a6d1ba2dd792c││        Filename(s):       │
+│   b16214' AND optional:   ││     /mnt/work/staging     │
+│         order_id<=        ││    /warehouse/duck/dwd    │
+│'fffe41c64501cc87c801fd61db││   /dwd_fact_payment/*/*   │
+│          3f6244'          ││          .parquet         │
+│                           ││                           │
+│    Total Files Read: 1    ││                           │
+│                           ││                           │
+│        Filename(s):       ││                           │
+│     /mnt/work/staging     ││           0.00s           │
+│    /warehouse/duck/dwd    ││                           │
+│   /dwd_fact_delivery/*/*  ││                           │
+│          .parquet         ││                           │
+│                           ││                           │
+│                           ││                           │
+│                           ││                           │
+│        99,441 rows        ││        103,886 rows       │
+│           0.01s           ││          (0.00s)          │
+└───────────────────────────┘└───────────────────────────┘

@@ -1,0 +1,121 @@
+SELECT
+              ROUND(SUM(CASE WHEN order_status = 'delivered' THEN item_price + freight_value END), 2),
+              ROUND(SUM(CASE WHEN order_status = 'canceled' THEN item_price + freight_value END), 2),
+              ROUND(SUM(CASE WHEN order_status NOT IN ('delivered', 'canceled', 'unavailable')
+                             THEN item_price + freight_value END), 2)
+            FROM v_order_item
+
+============================================================
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+EXPLAIN ANALYZE              SELECT               ROUND(SUM(CASE WHEN order_status = 'delivered' THEN item_price + freight_value END), 2),               ROUND(SUM(CASE WHEN order_status = 'canceled' THEN item_price + freight_value END), 2),               ROUND(SUM(CASE WHEN order_status NOT IN ('delivered', 'canceled', 'unavailable')                              THEN item_price + freight_value END), 2)             FROM v_order_item         
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0048s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│   round(sum(CASE  WHEN (  │
+│   (order_status = CAST(   │
+│ 'delivered' AS VARCHAR))) │
+│     THEN ((item_price +   │
+│  freight_value)) ELSE CAST│
+│ (NULL AS DOUBLE) END), 2) │
+│   round(sum(CASE  WHEN (  │
+│   (order_status = CAST(   │
+│  'canceled' AS VARCHAR))) │
+│     THEN ((item_price +   │
+│  freight_value)) ELSE CAST│
+│ (NULL AS DOUBLE) END), 2) │
+│   round(sum(CASE  WHEN (  │
+│ (order_status NOT IN (CAST│
+│ ('delivered' AS VARCHAR), │
+│     CAST('canceled' AS    │
+│       VARCHAR), CAST(     │
+│ 'unavailable' AS VARCHAR))│
+│   )) THEN ((item_price +  │
+│  freight_value)) ELSE CAST│
+│ (NULL AS DOUBLE) END), 2) │
+│                           │
+│                           │
+│                           │
+│           1 row           │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│    UNGROUPED_AGGREGATE    │
+│    ────────────────────   │
+│        Aggregates:        │
+│          sum(#0)          │
+│          sum(#1)          │
+│          sum(#2)          │
+│                           │
+│                           │
+│                           │
+│           1 row           │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│ CASE  WHEN ((order_status │
+│   = 'delivered')) THEN (  │
+│       (item_price +       │
+│  freight_value)) ELSE NULL│
+│             END           │
+│ CASE  WHEN ((order_status │
+│   = 'canceled')) THEN (   │
+│       (item_price +       │
+│  freight_value)) ELSE NULL│
+│             END           │
+│ CASE  WHEN ((order_status │
+│    NOT IN ('delivered',   │
+│ 'canceled', 'unavailable')│
+│   )) THEN ((item_price +  │
+│  freight_value)) ELSE NULL│
+│             END           │
+│                           │
+│                           │
+│                           │
+│        112,650 rows       │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         TABLE_SCAN        │
+│    ────────────────────   │
+│         Function:         │
+│        READ_PARQUET       │
+│                           │
+│        Projections:       │
+│         item_price        │
+│       freight_value       │
+│        order_status       │
+│                           │
+│    Total Files Read: 1    │
+│                           │
+│        Filename(s):       │
+│     /mnt/work/staging     │
+│    /warehouse/duck/dwd    │
+│  /dwd_fact_order_item/*/* │
+│          .parquet         │
+│                           │
+│                           │
+│                           │
+│        112,650 rows       │
+│           0.00s           │
+└───────────────────────────┘

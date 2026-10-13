@@ -1,0 +1,99 @@
+SELECT 'delivered' AS k, ROUND(SUM(item_price + freight_value), 2) AS v
+            FROM v_order_item WHERE order_status = 'delivered'
+            UNION ALL
+            SELECT 'canceled', ROUND(SUM(item_price + freight_value), 2)
+            FROM v_order_item WHERE order_status = 'canceled'
+            UNION ALL
+            SELECT 'in_progress', ROUND(SUM(item_price + freight_value), 2)
+            FROM v_order_item WHERE order_status NOT IN ('delivered', 'canceled', 'unavailable')
+
+============================================================
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+EXPLAIN ANALYZE              SELECT 'delivered' AS k, ROUND(SUM(item_price + freight_value), 2) AS v             FROM v_order_item WHERE order_status = 'delivered'             UNION ALL             SELECT 'canceled', ROUND(SUM(item_price + freight_value), 2)             FROM v_order_item WHERE order_status = 'canceled'             UNION ALL             SELECT 'in_progress', ROUND(SUM(item_price + freight_value), 2)             FROM v_order_item WHERE order_status NOT IN ('delivered', 'canceled', 'unavailable')         
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0043s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│           UNION           │
+│    ────────────────────   │
+│                           ├──────────────┬────────────────────────────┐
+│           3 rows          │              │                            │
+│           0.00s           │              │                            │
+└─────────────┬─────────────┘              │                            │
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│         PROJECTION        ││         PROJECTION        ││         PROJECTION        │
+│    ────────────────────   ││    ────────────────────   ││    ────────────────────   │
+│             k             ││         'canceled'        ││       'in_progress'       │
+│             v             ││  round(sum((item_price +  ││  round(sum((item_price +  │
+│                           ││     freight_value)), 2)   ││     freight_value)), 2)   │
+│                           ││                           ││                           │
+│                           ││                           ││                           │
+│                           ││                           ││                           │
+│           0.00s           ││           1 row           ││           1 row           │
+│          (0.00s)          ││           0.00s           ││           0.00s           │
+└─────────────┬─────────────┘└─────────────┬─────────────┘└─────────────┬─────────────┘
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│    UNGROUPED_AGGREGATE    ││    UNGROUPED_AGGREGATE    ││    UNGROUPED_AGGREGATE    │
+│    ────────────────────   ││    ────────────────────   ││    ────────────────────   │
+│    Aggregates: sum(#0)    ││    Aggregates: sum(#0)    ││    Aggregates: sum(#0)    │
+│                           ││                           ││                           │
+│                           ││                           ││                           │
+│                           ││                           ││                           │
+│           1 row           ││           1 row           ││           1 row           │
+│           0.00s           ││           0.00s           ││           0.00s           │
+└─────────────┬─────────────┘└─────────────┬─────────────┘└─────────────┬─────────────┘
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│         PROJECTION        ││         PROJECTION        ││         PROJECTION        │
+│    ────────────────────   ││    ────────────────────   ││    ────────────────────   │
+│       (item_price +       ││       (item_price +       ││       (item_price +       │
+│       freight_value)      ││       freight_value)      ││       freight_value)      │
+│                           ││                           ││                           │
+│                           ││                           ││                           │
+│                           ││                           ││                           │
+│        110,197 rows       ││          542 rows         ││         1,904 rows        │
+│           0.00s           ││           0.00s           ││           0.00s           │
+└─────────────┬─────────────┘└─────────────┬─────────────┘└─────────────┬─────────────┘
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│         TABLE_SCAN        ││         TABLE_SCAN        ││         TABLE_SCAN        │
+│    ────────────────────   ││    ────────────────────   ││    ────────────────────   │
+│         Function:         ││         Function:         ││         Function:         │
+│        READ_PARQUET       ││        READ_PARQUET       ││        READ_PARQUET       │
+│                           ││                           ││                           │
+│        Projections:       ││        Projections:       ││        Projections:       │
+│         item_price        ││         item_price        ││         item_price        │
+│       freight_value       ││       freight_value       ││       freight_value       │
+│                           ││                           ││                           │
+│          Filters:         ││          Filters:         ││          Filters:         │
+│  order_status='delivered' ││  order_status='canceled'  ││   (order_status NOT IN (  │
+│                           ││                           ││ 'delivered', 'canceled',  │
+│    Total Files Read: 1    ││    Total Files Read: 1    ││      'unavailable'))      │
+│                           ││                           ││                           │
+│        Filename(s):       ││        Filename(s):       ││    Total Files Read: 1    │
+│     /mnt/work/staging     ││     /mnt/work/staging     ││                           │
+│    /warehouse/duck/dwd    ││    /warehouse/duck/dwd    ││        Filename(s):       │
+│  /dwd_fact_order_item/*/* ││  /dwd_fact_order_item/*/* ││     /mnt/work/staging     │
+│          .parquet         ││          .parquet         ││    /warehouse/duck/dwd    │
+│                           ││                           ││  /dwd_fact_order_item/*/* │
+│                           ││                           ││          .parquet         │
+│                           ││                           ││                           │
+│                           ││                           ││                           │
+│           0.00s           ││           0.00s           ││                           │
+│        110,197 rows       ││          542 rows         ││         1,904 rows        │
+│          (0.00s)          ││          (0.00s)          ││           0.00s           │
+└───────────────────────────┘└───────────────────────────┘└───────────────────────────┘

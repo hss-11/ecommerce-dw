@@ -1,0 +1,72 @@
+[
+  {
+    "id": "C1_column_pruning",
+    "title": "列裁剪：SELECT * vs 只取必要列",
+    "naive_ms": 190.19,
+    "tuned_ms": 68.88,
+    "naive_min_ms": 185.33,
+    "tuned_min_ms": 67.62,
+    "speedup": 2.76,
+    "gate_pass": true
+  },
+  {
+    "id": "C2_right_grain",
+    "title": "粒度选表：COUNT(DISTINCT) vs COUNT(*)",
+    "naive_ms": 10.66,
+    "tuned_ms": 1.4,
+    "naive_min_ms": 10.23,
+    "tuned_min_ms": 1.07,
+    "speedup": 7.62,
+    "gate_pass": true
+  },
+  {
+    "id": "C3_agg_before_join",
+    "title": "先聚合后 join：payment 明细直接 join vs 先聚到订单粒度",
+    "naive_ms": 83.73,
+    "tuned_ms": 72.79,
+    "naive_min_ms": 73.88,
+    "tuned_min_ms": 71.02,
+    "speedup": 1.15,
+    "gate_pass": true
+  },
+  {
+    "id": "C4_semi_join",
+    "title": "半连接：JOIN + COUNT(DISTINCT) vs WHERE IN",
+    "naive_ms": 26.37,
+    "tuned_ms": 19.87,
+    "naive_min_ms": 25.5,
+    "tuned_min_ms": 18.67,
+    "speedup": 1.33,
+    "gate_pass": true
+  },
+  {
+    "id": "C5_window_vs_subquery",
+    "title": "窗口函数：相关子查询 vs 窗口函数（7 日移动平均，自然日口径）",
+    "naive_ms": 6.07,
+    "tuned_ms": 1.22,
+    "naive_min_ms": 4.85,
+    "tuned_min_ms": 1.07,
+    "speedup": 4.97,
+    "gate_pass": true
+  },
+  {
+    "id": "C6_cond_agg",
+    "title": "单扫描条件聚合 vs 3 次扫描 UNION",
+    "naive_ms": 3.38,
+    "tuned_ms": 4.65,
+    "naive_min_ms": 2.97,
+    "tuned_min_ms": 4.48,
+    "speedup": 0.73,
+    "gate_pass": true
+  },
+  {
+    "id": "C7_predicate_pushdown",
+    "title": "谓词下推校验：先 join 后过滤 vs 先过滤后 join",
+    "naive_ms": 24.42,
+    "tuned_ms": 27.54,
+    "naive_min_ms": 24.25,
+    "tuned_min_ms": 23.26,
+    "speedup": 0.89,
+    "gate_pass": true
+  }
+]

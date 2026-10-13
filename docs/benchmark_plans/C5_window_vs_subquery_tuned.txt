@@ -1,0 +1,78 @@
+SELECT full_date, gmv,
+                   AVG(gmv) OVER (ORDER BY full_date
+                                  RANGE BETWEEN INTERVAL 6 DAY PRECEDING AND CURRENT ROW) AS gmv_ma7
+            FROM v_trade_daily
+
+============================================================
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+EXPLAIN ANALYZE              SELECT full_date, gmv,                    AVG(gmv) OVER (ORDER BY full_date                                   RANGE BETWEEN INTERVAL 6 DAY PRECEDING AND CURRENT ROW) AS gmv_ma7             FROM v_trade_daily         
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0018s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│             #0            │
+│             #1            │
+│             #2            │
+│                           │
+│                           │
+│                           │
+│          616 rows         │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│           WINDOW          │
+│    ────────────────────   │
+│        Projections:       │
+│  avg(gmv) OVER (ORDER BY  │
+│      CAST(full_date AS    │
+│  TIMESTAMP) ASC NULLS LAST│
+│  RANGE BETWEEN (full_date │
+│   - '6 days'::INTERVAL)   │
+│ PRECEDING AND CURRENT ROW)│
+│                           │
+│                           │
+│                           │
+│          616 rows         │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         TABLE_SCAN        │
+│    ────────────────────   │
+│         Function:         │
+│        READ_PARQUET       │
+│                           │
+│        Projections:       │
+│         full_date         │
+│            gmv            │
+│                           │
+│    Total Files Read: 1    │
+│                           │
+│        Filename(s):       │
+│     /mnt/work/staging     │
+│    /warehouse/duck/dws    │
+│    /dws_trade_daily/*/*   │
+│          .parquet         │
+│                           │
+│                           │
+│                           │
+│          616 rows         │
+│           0.00s           │
+└───────────────────────────┘

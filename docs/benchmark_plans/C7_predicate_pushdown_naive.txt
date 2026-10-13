@@ -1,0 +1,93 @@
+SELECT SUM(oi.item_price + oi.freight_value)
+            FROM v_order_item oi JOIN v_delivery d ON oi.order_id = d.order_id
+            WHERE d.order_status = 'delivered'
+
+============================================================
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+EXPLAIN ANALYZE              SELECT SUM(oi.item_price + oi.freight_value)             FROM v_order_item oi JOIN v_delivery d ON oi.order_id = d.order_id             WHERE d.order_status = 'delivered'         
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: 0.0303s             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│    UNGROUPED_AGGREGATE    │
+│    ────────────────────   │
+│    Aggregates: sum(#0)    │
+│                           │
+│                           │
+│                           │
+│           1 row           │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│       (item_price +       │
+│       freight_value)      │
+│                           │
+│                           │
+│                           │
+│        110,197 rows       │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         HASH_JOIN         │
+│    ────────────────────   │
+│      Join Type: INNER     │
+│                           │
+│        Conditions:        │
+│    order_id = order_id    ├──────────────┐
+│                           │              │
+│                           │              │
+│                           │              │
+│        110,197 rows       │              │
+│           0.01s           │              │
+└─────────────┬─────────────┘              │
+┌─────────────┴─────────────┐┌─────────────┴─────────────┐
+│         TABLE_SCAN        ││         TABLE_SCAN        │
+│    ────────────────────   ││    ────────────────────   │
+│         Function:         ││         Function:         │
+│        READ_PARQUET       ││        READ_PARQUET       │
+│                           ││                           │
+│        Projections:       ││   Projections: order_id   │
+│          order_id         ││                           │
+│         item_price        ││          Filters:         │
+│       freight_value       ││  order_status='delivered' │
+│                           ││                           │
+│      Dynamic Filters:     ││    Total Files Read: 1    │
+│    optional: order_id>=   ││                           │
+│'00010242fe8c5a6d1ba2dd792c││        Filename(s):       │
+│   b16214' AND optional:   ││     /mnt/work/staging     │
+│         order_id<=        ││    /warehouse/duck/dwd    │
+│'fffe41c64501cc87c801fd61db││   /dwd_fact_delivery/*/*  │
+│   3f6244' AND optional:   ││          .parquet         │
+│  order_id IN BF(order_id) ││                           │
+│                           ││                           │
+│    Total Files Read: 1    ││                           │
+│                           ││                           │
+│        Filename(s):       ││           0.00s           │
+│     /mnt/work/staging     ││                           │
+│    /warehouse/duck/dwd    ││                           │
+│  /dwd_fact_order_item/*/* ││                           │
+│          .parquet         ││                           │
+│                           ││                           │
+│                           ││                           │
+│                           ││                           │
+│        110,202 rows       ││        96,478 rows        │
+│           0.01s           ││          (0.00s)          │
+└───────────────────────────┘└───────────────────────────┘
