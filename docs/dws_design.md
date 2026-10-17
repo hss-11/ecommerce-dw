@@ -55,7 +55,7 @@
 | --- | --- |
 | 粒度 | 一行 = 一个批准日（order_approved_at 代理） |
 | 来源 | dwd_fact_payment |
-| 行数 | 611（+1 行 NULL date_key：未批准订单的支付，无法归属日期，保留以保全流水） |
+| 行数 | 611 行 = 610 个有日期的批准日 + 1 行 NULL date_key（未批准订单的支付，无法归属日期，保留以保全流水 37,129.77 BRL） |
 | paid_order_cnt | 当日有支付的订单数 |
 | payment_cnt | 当日支付笔数（一单多笔） |
 | payment_flow | 当日 SUM(payment_value)，不过滤（字典 2.2 支付流水） |
