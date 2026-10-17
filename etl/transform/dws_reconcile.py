@@ -10,14 +10,16 @@ dws_reconcile.py — DWS / ADS 对账脚本（W5）
 用法：python etl/transform/dws_reconcile.py
 """
 from pathlib import Path
+import os
 import sys
 
 import duckdb
 
 ROOT = Path(__file__).resolve().parents[2]
-DWD = (ROOT / "warehouse" / "duck" / "dwd").as_posix()
-DWS = (ROOT / "warehouse" / "duck" / "dws").as_posix()
-ADS = (ROOT / "warehouse" / "duck" / "ads").as_posix()
+# 路径支持环境变量覆盖，与 dwd_build / dws_build / ads_build / dwd_reconcile 保持一致
+DWD = Path(os.environ.get("DWD_DIR", ROOT / "warehouse" / "duck" / "dwd")).as_posix()
+DWS = Path(os.environ.get("DWS_DIR", ROOT / "warehouse" / "duck" / "dws")).as_posix()
+ADS = Path(os.environ.get("ADS_DIR", ROOT / "warehouse" / "duck" / "ads")).as_posix()
 
 # ---- W4 冻结基准（与 docs/data_dictionary.md 口径一一对应）----
 BASE_GMV = 15419773.75          # 2.1 GMV：SUM(item_price+freight_value)，仅 delivered
@@ -39,7 +41,12 @@ def t(base, name):
 
 
 def q1(sql):
-    return con.execute(sql).fetchone()[0]
+    """取单值；读取失败（如 Parquet 残缺/目录缺失）返回错误标记，
+    让 check() 判 FAIL 并继续跑完所有断言，而不是抛堆栈中断对账。"""
+    try:
+        return con.execute(sql).fetchone()[0]
+    except Exception as e:
+        return f"<读取失败: {type(e).__name__}>"
 
 
 def check(label, actual, expected, tol=0.01):

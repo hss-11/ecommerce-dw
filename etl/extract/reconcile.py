@@ -124,9 +124,22 @@ def main() -> int:
             all_pass = False
             continue
 
-        sql = stats_sql(csv_src, cfg["pk"], cfg["sums"])
-        csv_stats = con.execute(sql).fetchone()
-        pq_stats = con.execute(stats_sql(pq_src, cfg["pk"], cfg["sums"])).fetchone()
+        # 两侧统计都做容错：Parquet 残缺（中断写入会缺尾部魔数）或 CSV 缺失时，
+        # 打印可读的 [FAIL] 而不是抛堆栈——对账脚本的职责是"报告问题"，不是崩溃
+        try:
+            sql = stats_sql(csv_src, cfg["pk"], cfg["sums"])
+            csv_stats = con.execute(sql).fetchone()
+        except Exception as e:
+            print(f"[FAIL] {table}: CSV 侧统计失败（{type(e).__name__}: {str(e).splitlines()[0][:80]}）")
+            all_pass = False
+            continue
+        try:
+            pq_stats = con.execute(stats_sql(pq_src, cfg["pk"], cfg["sums"])).fetchone()
+        except Exception as e:
+            print(f"[FAIL] {table}: Parquet 侧统计失败（{type(e).__name__}: {str(e).splitlines()[0][:80]}）")
+            print("       提示：目录存在但文件不可读，多为中断写入留下的残缺文件；重跑 ods_load.py 可自愈")
+            all_pass = False
+            continue
 
         problems = []
 
